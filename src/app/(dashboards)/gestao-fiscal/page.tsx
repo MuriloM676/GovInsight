@@ -92,8 +92,8 @@ export default function GestaoFiscalPage() {
                 dataKey="ano"
                 tickFormatter={(v, i) => `${v}/${pessoal?.[i]?.periodo || ""}`}
               />
-              <YAxis domain={[0, limiteLegal * 1.2]} tickFormatter={(v) => `${v}%`} />
-              <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
+              <YAxis domain={[0, limiteLegal * 1.2]} tickFormatter={(v: any) => `${Number(v)}%`} />
+              <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)}%`} />
               <Legend />
               <Line dataKey="percentual" stroke="#2563eb" strokeWidth={2} name="% RCL" dot />
               <Line
@@ -125,7 +125,7 @@ export default function GestaoFiscalPage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="ano" />
               <YAxis tickFormatter={(v) => `R$${(v / 1e6).toFixed(0)}M`} />
-              <Tooltip formatter={(v: number) => formatBRL(v)} />
+              <Tooltip formatter={(value: any) => formatBRL(Number(value))} />
               <Legend />
               <Line type="monotone" dataKey="valor" stroke="#8b5cf6" strokeWidth={2} name="Dívida Consolidada" />
             </LineChart>

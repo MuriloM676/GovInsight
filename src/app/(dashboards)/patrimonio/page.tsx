@@ -37,8 +37,8 @@ export default function PatrimonioPage() {
           <AreaChart data={data || []}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="ano" />
-            <YAxis tickFormatter={(v) => `R$${(v / 1e6).toFixed(0)}M`} />
-            <Tooltip formatter={(v: number) => formatBRL(v)} />
+            <YAxis tickFormatter={(v: any) => `R$${(Number(v) / 1e6).toFixed(0)}M`} />
+            <Tooltip formatter={(value: any) => formatBRL(Number(value))} />
             <Legend />
             <Area type="monotone" dataKey="ativo" stackId="1" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} name="Ativo" />
             <Area type="monotone" dataKey="passivo" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} name="Passivo" />
@@ -52,8 +52,8 @@ export default function PatrimonioPage() {
           <LineChart data={data || []}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="ano" />
-            <YAxis tickFormatter={(v) => `R$${(v / 1e6).toFixed(0)}M`} />
-            <Tooltip formatter={(v: number) => formatBRL(v)} />
+            <YAxis tickFormatter={(v: any) => `R$${(Number(v) / 1e6).toFixed(0)}M`} />
+            <Tooltip formatter={(value: any) => formatBRL(Number(value))} />
             <Legend />
             <Line type="monotone" dataKey="patrimonio_liquido" stroke="#10b981" strokeWidth={2} name="Patrimônio Líquido" />
             <Line type="monotone" dataKey="caixa" stroke="#f59e0b" strokeWidth={2} name="Caixa" />

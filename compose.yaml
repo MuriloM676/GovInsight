@@ -14,18 +14,24 @@ services:
       test: ["CMD-SHELL", "pg_isready -U govinsight -d govinsight"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: govinsight-app
     ports:
       - "3000:3000"
     environment:
       DATABASE_URL: "postgresql://govinsight:govinsight@db:5432/govinsight?schema=public"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: govinsight
+      DB_PASSWORD: govinsight
+      DB_NAME: govinsight
     volumes:
       - ./dados_siconfi_3550100:/app/dados_siconfi_3550100
-      - ./prisma:/app/prisma
     depends_on:
       db:
         condition: service_healthy
@@ -34,7 +40,6 @@ services:
         npx prisma generate &&
         npx prisma migrate deploy &&
         npm run etl &&
-        npm run build &&
         npm start
       "
 

@@ -13,6 +13,11 @@ function formatBRL(val: number) {
   return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatTooltip(value: any) {
+  const num = typeof value === "number" ? value : Number(value);
+  return formatBRL(num);
+}
+
 export default function ExecutivoPage() {
   const { data: insights, isLoading: loadingInsights } = useQuery({
     queryKey: ["insights"],
@@ -85,8 +90,8 @@ export default function ExecutivoPage() {
               <BarChart data={receitaAno?.receitaArrecadada || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="bimestre" />
-                <YAxis tickFormatter={(v) => `R$${(v / 1e6).toFixed(0)}M`} />
-                <Tooltip formatter={(v: number) => formatBRL(v)} />
+                <YAxis tickFormatter={(v: any) => `R$${(Number(v) / 1e6).toFixed(0)}M`} />
+                <Tooltip formatter={(value: any) => formatBRL(Number(value))} />
                 <Bar dataKey="valor" fill="#2563eb" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -107,13 +112,13 @@ export default function ExecutivoPage() {
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
-                  label={({ funcao }) => funcao.slice(0, 20)}
+                  label={({ funcao }: any) => funcao.slice(0, 20)}
                 >
                   {(despesaFuncao?.slice(0, 8) || []).map((_: any, i: number) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: number) => formatBRL(v)} />
+                <Tooltip formatter={(value: any) => formatBRL(Number(value))} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -129,11 +134,11 @@ export default function ExecutivoPage() {
             <LineChart data={receitaDespesa || []}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="bimestre" />
-              <YAxis tickFormatter={(v) => `R$${(v / 1e6).toFixed(0)}M`} />
-              <Tooltip formatter={(v: number) => formatBRL(v)} />
-              <Legend />
-              <Line type="monotone" dataKey="receita" stroke="#10b981" strokeWidth={2} name="Receita" />
-              <Line type="monotone" dataKey="despesa" stroke="#ef4444" strokeWidth={2} name="Despesa" />
+              <YAxis tickFormatter={(v: any) => `R$${(Number(v) / 1e6).toFixed(0)}M`} />
+              <Tooltip formatter={(value: any) => formatBRL(Number(value))} />
+                <Legend />
+                <Line type="monotone" dataKey="receita" stroke="#10b981" strokeWidth={2} name="Receita" />
+                <Line type="monotone" dataKey="despesa" stroke="#ef4444" strokeWidth={2} name="Despesa" />
             </LineChart>
           </ResponsiveContainer>
         )}
