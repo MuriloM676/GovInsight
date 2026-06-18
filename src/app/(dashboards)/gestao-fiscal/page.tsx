@@ -1,137 +1,207 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { MetricCard } from "@/components/ui/metric-card";
+import { ChartCard } from "@/components/ui/chart-card";
+import { SectionHeader } from "@/components/ui/section-header";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend,
+  AreaChart, Area,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 
-function formatBRL(val: number) {
-  return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function formatBRL(val: number | string) {
+  const num = typeof val === "number" ? val : Number(val);
+  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+const limiteLegal = 100;
+const limitePrudencial = 95;
+const limiteAlerta = 90;
+
 export default function GestaoFiscalPage() {
-  const { data: pessoal, isLoading: loadingPessoal } = useQuery({
+  const pessoalQuery = useQuery({
     queryKey: ["gasto-pessoal"],
     queryFn: () => fetch("/api/rgf/gasto-pessoal").then((r) => r.json()),
   });
 
-  const { data: divida, isLoading: loadingDivida } = useQuery({
+  const dividaQuery = useQuery({
     queryKey: ["divida"],
     queryFn: () => fetch("/api/rgf/divida").then((r) => r.json()),
   });
 
-  const limiteLegal = 100;
-  const limitePrudencial = 95;
-  const limiteAlerta = 90;
+  const isLoading = pessoalQuery.isLoading || dividaQuery.isLoading;
+  const hasError = pessoalQuery.isError || dividaQuery.isError;
 
+  if (hasError) {
+    return (
+      <ErrorState
+        onRetry={() => {
+          pessoalQuery.refetch();
+          dividaQuery.refetch();
+        }}
+      />
+    );
+  }
+
+  if (isLoading) return <LoadingState variant="page" />;
+
+  const pessoal = pessoalQuery.data || [];
+  const divida = dividaQuery.data || [];
   const ultimoPessoal = pessoal?.[pessoal?.length - 1];
+  const percentual = ultimoPessoal?.percentual || 0;
+
+  const pessoalHealth =
+    percentual > limiteLegal ? "negative" :
+    percentual > limitePrudencial ? "warning" : "positive";
+
+  const dividaConsolidada = divida.filter(
+    (d: any) => d.cod_conta === "DIVIDA CONSOLIDADA - DC (I)"
+  );
+  const ultimaDivida = dividaConsolidada?.[dividaConsolidada?.length - 1];
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-3xl font-bold tracking-tight">Gestão Fiscal</h1>
+    <div className="space-y-6">
+      <SectionHeader
+        title="Gestão Fiscal"
+        subtitle="Gasto com pessoal, limites da LRF e dívida consolidada"
+      />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Gasto com Pessoal (% RCL)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadingPessoal ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">
-                  {ultimoPessoal?.percentual?.toFixed(2)}%
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Último: {ultimoPessoal?.ano}/{ultimoPessoal?.periodo}º quadrimestre
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Limite Legal (LRF)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{limiteLegal}%</div>
-            <p className="text-xs text-muted-foreground mt-1">Art. 20 da LRF</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Limite Prudencial
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-500">{limitePrudencial}%</div>
-            <p className="text-xs text-muted-foreground mt-1">95% do limite legal</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          title="Gasto com Pessoal"
+          value={`${percentual.toFixed(2)}%`}
+          health={pessoalHealth}
+          subtitle={`Último: ${ultimoPessoal?.ano || "-"}/${ultimoPessoal?.periodo || "-"}º quadrimestre`}
+          trend={{
+            value: percentual,
+            direction: percentual > limiteAlerta ? "up" : percentual > limitePrudencial ? "up" : "down",
+          }}
+        />
+        <MetricCard
+          title="Limite Legal (LRF)"
+          value={`${limiteLegal}%`}
+          health="neutral"
+          subtitle="Art. 20 da LRF"
+        />
+        <MetricCard
+          title="Limite Prudencial"
+          value={`${limitePrudencial}%`}
+          health="warning"
+          subtitle="95% do limite legal"
+        />
+        <MetricCard
+          title="Dívida Consolidada"
+          value={formatBRL(ultimaDivida?.valor || 0)}
+          health="neutral"
+          subtitle={ultimaDivida ? `Último: ${ultimaDivida.ano}` : undefined}
+        />
       </div>
 
-      <div className="bg-card rounded-lg border p-4">
-        <h3 className="font-semibold mb-4">Evolução do Gasto com Pessoal vs Limites</h3>
-        {loadingPessoal ? (
-          <div className="h-64 bg-muted rounded animate-pulse" />
-        ) : (
-          <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={pessoal || []}>
-              <CartesianGrid strokeDasharray="3 3" />
+      <ChartCard
+        title="Evolução do Gasto com Pessoal"
+        subtitle="Percentual da Receita Corrente Líquida vs Limites Legais"
+        loading={pessoalQuery.isLoading}
+        height={320}
+      >
+        {pessoal.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={pessoal} margin={{ top: 8, bottom: 8 }}>
               <XAxis
                 dataKey="ano"
-                tickFormatter={(v, i) => `${v}/${pessoal?.[i]?.periodo || ""}`}
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
               />
-              <YAxis domain={[0, limiteLegal * 1.2]} tickFormatter={(v: any) => `${Number(v)}%`} />
-              <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)}%`} />
-              <Legend />
-              <Line dataKey="percentual" stroke="#2563eb" strokeWidth={2} name="% RCL" dot />
+              <YAxis
+                domain={[0, limiteLegal * 1.2]}
+                tickFormatter={(v) => `${Number(v)}%`}
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                formatter={(value) => `${Number(value).toFixed(2)}%`}
+                contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", fontSize: 12 }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} iconType="circle" iconSize={8} />
               <Line
-                dataKey={() => limiteLegal}
-                stroke="#ef4444"
+                type="monotone"
+                dataKey="percentual"
+                stroke="var(--chart-1)"
                 strokeWidth={2}
-                strokeDasharray="5 5"
-                name="Limite Legal (100%)"
+                dot={{ r: 3 }}
+                activeDot={{ r: 5 }}
+                name="% RCL"
+              />
+              <Line
+                dataKey={() => limiteAlerta}
+                stroke="#f59e0b"
+                strokeWidth={1.5}
+                strokeDasharray="6 4"
+                dot={false}
+                name="Limite Alerta (90%)"
               />
               <Line
                 dataKey={() => limitePrudencial}
-                stroke="#f59e0b"
-                strokeWidth={2}
-                strokeDasharray="5 5"
+                stroke="#f97316"
+                strokeWidth={1.5}
+                strokeDasharray="6 4"
+                dot={false}
                 name="Limite Prudencial (95%)"
+              />
+              <Line
+                dataKey={() => limiteLegal}
+                stroke="#ef4444"
+                strokeWidth={1.5}
+                strokeDasharray="6 4"
+                dot={false}
+                name="Limite Legal (100%)"
               />
             </LineChart>
           </ResponsiveContainer>
-        )}
-      </div>
-
-      <div className="bg-card rounded-lg border p-4">
-        <h3 className="font-semibold mb-4">Dívida Consolidada</h3>
-        {loadingDivida ? (
-          <div className="h-64 bg-muted rounded animate-pulse" />
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={divida?.filter((d: any) => d.cod_conta === "DIVIDA CONSOLIDADA - DC (I)") || []}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="ano" />
-              <YAxis tickFormatter={(v) => `R$${(v / 1e6).toFixed(0)}M`} />
-              <Tooltip formatter={(value: any) => formatBRL(Number(value))} />
-              <Legend />
-              <Line type="monotone" dataKey="valor" stroke="#8b5cf6" strokeWidth={2} name="Dívida Consolidada" />
-            </LineChart>
-          </ResponsiveContainer>
+          <EmptyState title="Sem dados de gasto com pessoal" />
         )}
-      </div>
+      </ChartCard>
+
+      <ChartCard
+        title="Dívida Consolidada"
+        subtitle="Evolução histórica"
+        loading={dividaQuery.isLoading}
+        height={300}
+      >
+        {dividaConsolidada.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={dividaConsolidada} margin={{ top: 8, bottom: 8 }}>
+              <XAxis dataKey="ano" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis
+                tickFormatter={(v) => `R$${(Number(v) / 1e6).toFixed(0)}M`}
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                formatter={(value) => formatBRL(value as number)}
+                contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", background: "var(--popover)", fontSize: 12 }}
+              />
+              <Area
+                type="monotone"
+                dataKey="valor"
+                stroke="#8b5cf6"
+                fill="#8b5cf6"
+                fillOpacity={0.1}
+                strokeWidth={2}
+                name="Dívida Consolidada"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyState title="Sem dados de dívida consolidada" />
+        )}
+      </ChartCard>
     </div>
   );
 }

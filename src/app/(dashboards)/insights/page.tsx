@@ -1,109 +1,111 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Lightbulb, TrendingUp, TrendingDown, AlertTriangle, DollarSign } from "lucide-react";
+import { MetricCard } from "@/components/ui/metric-card";
+import { SectionHeader } from "@/components/ui/section-header";
+import { InsightCard } from "@/components/ui/insight-card";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
-const iconMap = [Lightbulb, TrendingUp, TrendingDown, AlertTriangle, DollarSign];
+function formatBRL(val: number | string) {
+  const num = typeof val === "number" ? val : Number(val);
+  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function categorizeInsight(text: string) {
+  const lower = text.toLowerCase();
+  if (lower.includes("superávit") || lower.includes("superavit")) return "receita";
+  if (lower.includes("déficit") || lower.includes("deficit")) return "despesa";
+  if (lower.includes("alerta") || lower.includes("limite")) return "alerta";
+  if (lower.includes("dívida") || lower.includes("divida")) return "divida";
+  if (lower.includes("pessoal") || lower.includes("lrf")) return "fiscal";
+  return "geral";
+}
+
+function getPriority(text: string): "high" | "medium" | "low" {
+  const lower = text.toLowerCase();
+  if (lower.includes("déficit") || lower.includes("acima") || lower.includes("excedeu")) return "high";
+  if (lower.includes("superávit") || lower.includes("cresceu") || lower.includes("aumentou")) return "medium";
+  return "low";
+}
 
 export default function InsightsPage() {
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: ["insights"],
     queryFn: () => fetch("/api/insights").then((r) => r.json()),
   });
 
+  if (query.isError) {
+    return <ErrorState onRetry={() => query.refetch()} />;
+  }
+
+  if (query.isLoading) return <LoadingState variant="page" />;
+
+  const data = query.data;
+  const insights = data?.insights || [];
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
+      <SectionHeader
+        title="Insights Inteligentes"
+        subtitle="Análises automáticas baseadas nos dados fiscais de São Manuel"
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <MetricCard
+          title="Receita Total"
+          value={formatBRL(data?.receita_total || 0)}
+          health="positive"
+        />
+        <MetricCard
+          title="Despesa Total"
+          value={formatBRL(data?.despesa_total || 0)}
+          health="neutral"
+        />
+        <MetricCard
+          title="Resultado"
+          value={formatBRL(data?.superavit || 0)}
+          health={(data?.superavit || 0) >= 0 ? "positive" : "negative"}
+        />
+      </div>
+
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Insights Inteligentes</h1>
-        <p className="text-muted-foreground">
-          Análises automáticas baseadas nos dados fiscais
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Receita Total
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <div className="text-2xl font-bold text-green-500">
-                {data?.receita_total?.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Despesa Total
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <div className="text-2xl font-bold text-red-500">
-                {data?.despesa_total?.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Resultado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <div className={`text-2xl font-bold ${(data?.superavit || 0) >= 0 ? "text-green-500" : "text-red-500"}`}>
-                {data?.superavit?.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="space-y-3">
-        <h2 className="text-xl font-semibold">Análises Geradas</h2>
-        {isLoading ? (
+        <SectionHeader
+          title="Análises Geradas"
+          subtitle={`${insights.length} insight${insights.length !== 1 ? "s" : ""} encontrado${insights.length !== 1 ? "s" : ""}`}
+          className="mb-3"
+        />
+        {insights.length > 0 ? (
           <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-16 w-full" />
+            {insights.map((text: string, i: number) => (
+              <InsightCard
+                key={i}
+                text={text}
+                category={categorizeInsight(text) as any}
+                priority={getPriority(text)}
+                impact={
+                  getPriority(text) === "high"
+                    ? "Requer atenção imediata"
+                    : getPriority(text) === "medium"
+                    ? "Monitoramento recomendado"
+                    : "Informativo"
+                }
+                recommendation={
+                  text.includes("déficit")
+                    ? "Avalie a necessidade de contingenciamento de despesas."
+                    : text.includes("superávit")
+                    ? "Considere direcionar o superávit para investimentos ou reservas."
+                    : undefined
+                }
+              />
             ))}
           </div>
         ) : (
-          data?.insights?.map((text: string, i: number) => {
-            const Icon = iconMap[i % iconMap.length];
-            return (
-              <Card key={i} className="border-l-4 border-l-primary">
-                <CardContent className="flex items-start gap-3 pt-4">
-                  <Icon className="h-5 w-5 mt-0.5 text-primary shrink-0" />
-                  <p className="text-sm">{text}</p>
-                </CardContent>
-              </Card>
-            );
-          })
+          <EmptyState
+            title="Nenhum insight disponível"
+            description="Não foram geradas análises automáticas para o período atual. Verifique se há dados carregados."
+          />
         )}
       </div>
     </div>
