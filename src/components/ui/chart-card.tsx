@@ -33,14 +33,16 @@ export function ChartCard({
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
-      <div className="p-2 pt-0 flex-1">
+      <div className="p-2 pt-0 flex-1 min-w-0">
         {loading ? (
           <div
             className="bg-muted/50 rounded-lg animate-pulse"
             style={{ height: height || 280 }}
           />
         ) : (
-          <div style={{ height: height || 280 }}>{children}</div>
+          <div style={{ height: height || 280, width: "100%", position: "relative" }} className="min-w-0">
+            {children}
+          </div>
         )}
       </div>
     </div>
