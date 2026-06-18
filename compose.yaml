@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: govinsight-db
+    environment:
+      POSTGRES_USER: govinsight
+      POSTGRES_PASSWORD: govinsight
+      POSTGRES_DB: govinsight
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U govinsight -d govinsight"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: govinsight-app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://govinsight:govinsight@db:5432/govinsight?schema=public"
+    volumes:
+      - ./dados_siconfi_3550100:/app/dados_siconfi_3550100
+      - ./prisma:/app/prisma
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "
+        npx prisma generate &&
+        npx prisma migrate deploy &&
+        npm run etl &&
+        npm run build &&
+        npm start
+      "
+
+volumes:
+  pgdata:

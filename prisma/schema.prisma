@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model dim_municipio {
+  cod_ibge  Int    @id
+  ente      String
+  capital   Boolean @default(false)
+  regiao    String?
+  uf        String?
+  esfera    String?
+  cnpj      String?
+
+  fato_dca       fato_dca[]
+  fato_receitas  fato_receita[]
+  fato_despesas  fato_despesa[]
+  fato_rgf       fato_rgf[]
+
+  @@index([uf, regiao])
+}
+
+model dim_tempo {
+  id           Int    @id @default(autoincrement())
+  ano          Int
+  bimestre     Int    @default(0)
+  quadrimestre Int    @default(0)
+  label        String
+
+  fato_dca      fato_dca[]
+  fato_receitas fato_receita[]
+  fato_despesas fato_despesa[]
+  fato_rgf      fato_rgf[]
+
+  @@unique([ano, bimestre, quadrimestre])
+  @@index([ano])
+}
+
+model dim_conta_dca {
+  id        Int    @id @default(autoincrement())
+  cod_conta String
+  descricao String
+  anexo     String?
+  nivel     Int?
+  pai_id    Int?
+  pai       dim_conta_dca?  @relation("ContaDCAHierarquia", fields: [pai_id], references: [id])
+  filhos    dim_conta_dca[] @relation("ContaDCAHierarquia")
+
+  fato_dca fato_dca[]
+
+  @@unique([cod_conta])
+  @@index([anexo])
+}
+
+model dim_conta_rreo {
+  id        Int    @id @default(autoincrement())
+  cod_conta String
+  descricao String
+  tipo      String? // Receita | Despesa
+
+  fato_receitas fato_receita[]
+  fato_despesas fato_despesa[]
+
+  @@unique([cod_conta, tipo])
+}
+
+model dim_conta_rgf {
+  id        Int    @id @default(autoincrement())
+  cod_conta String
+  descricao String
+  anexo_rgf String?
+
+  fato_rgf fato_rgf[]
+
+  @@unique([cod_conta])
+  @@index([anexo_rgf])
+}
+
+model dim_coluna {
+  id          Int    @id @default(autoincrement())
+  codigo      String
+  descricao   String
+  tipo_valor  String? // PREVISAO, REALIZADO, SALDO, etc.
+
+  fato_dca      fato_dca[]
+  fato_receitas fato_receita[]
+  fato_despesas fato_despesa[]
+  fato_rgf      fato_rgf[]
+
+  @@unique([codigo])
+}
+
+model dim_anexo {
+  id              Int    @id @default(autoincrement())
+  codigo          String
+  descricao       String
+  demonstrativo   String // DCA, RREO, RGF
+
+  fato_dca fato_dca[]
+  fato_rgf  fato_rgf[]
+
+  @@unique([codigo])
+}
+
+model fato_dca {
+  id           Int   @id @default(autoincrement())
+  municipio_id Int
+  tempo_id     Int
+  conta_id     Int
+  anexo_id     Int
+  coluna_id    Int
+  valor        Float
+
+  municipio dim_municipio @relation(fields: [municipio_id], references: [cod_ibge])
+  tempo     dim_tempo     @relation(fields: [tempo_id], references: [id])
+  conta     dim_conta_dca @relation(fields: [conta_id], references: [id])
+  anexo     dim_anexo     @relation(fields: [anexo_id], references: [id])
+  coluna    dim_coluna    @relation(fields: [coluna_id], references: [id])
+
+  @@index([municipio_id, tempo_id])
+  @@index([conta_id])
+  @@index([anexo_id])
+  @@index([tempo_id])
+}
+
+model fato_receita {
+  id           Int   @id @default(autoincrement())
+  municipio_id Int
+  tempo_id     Int
+  conta_id     Int
+  coluna_id    Int
+  bimestre     Int
+  valor        Float
+
+  municipio dim_municipio  @relation(fields: [municipio_id], references: [cod_ibge])
+  tempo     dim_tempo      @relation(fields: [tempo_id], references: [id])
+  conta     dim_conta_rreo @relation(fields: [conta_id], references: [id])
+  coluna    dim_coluna     @relation(fields: [coluna_id], references: [id])
+
+  @@index([municipio_id, tempo_id])
+  @@index([conta_id])
+  @@index([tempo_id, bimestre])
+}
+
+model fato_despesa {
+  id           Int   @id @default(autoincrement())
+  municipio_id Int
+  tempo_id     Int
+  conta_id     Int
+  coluna_id    Int
+  bimestre     Int
+  valor        Float
+
+  municipio dim_municipio  @relation(fields: [municipio_id], references: [cod_ibge])
+  tempo     dim_tempo      @relation(fields: [tempo_id], references: [id])
+  conta     dim_conta_rreo @relation(fields: [conta_id], references: [id])
+  coluna    dim_coluna     @relation(fields: [coluna_id], references: [id])
+
+  @@index([municipio_id, tempo_id])
+  @@index([conta_id])
+  @@index([tempo_id, bimestre])
+}
+
+model fato_rgf {
+  id           Int   @id @default(autoincrement())
+  municipio_id Int
+  tempo_id     Int
+  conta_id     Int
+  anexo_id     Int
+  coluna_id    Int
+  periodo      Int
+  valor        Float
+
+  municipio dim_municipio @relation(fields: [municipio_id], references: [cod_ibge])
+  tempo     dim_tempo     @relation(fields: [tempo_id], references: [id])
+  conta     dim_conta_rgf @relation(fields: [conta_id], references: [id])
+  anexo     dim_anexo     @relation(fields: [anexo_id], references: [id])
+  coluna    dim_coluna    @relation(fields: [coluna_id], references: [id])
+
+  @@index([municipio_id, tempo_id])
+  @@index([conta_id])
+  @@index([anexo_id])
+  @@index([tempo_id])
+}
